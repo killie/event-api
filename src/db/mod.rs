@@ -121,15 +121,6 @@ fn get_comment_properties(id: &str) -> Vec<Property> {
     properties
 }
 
-/*
-fn filter_events(events: Vec<Event>, f: impl Fn(Event) -> bool) -> EventsOption {
-    Some(events
-         .into_iter()
-         .filter(|e| -> f(e))
-         .collect())
-}
-*/
-
 pub fn query_events(from: Option<i64>, to: Option<i64>, app_name: Option<String>) -> EventsOption {
     match read_events(true) {
         Ok(events) => {

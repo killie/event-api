@@ -35,24 +35,3 @@ pub struct Comment {
     pub _templates: Option<Vec<Template>>,
 }
 
-/*
-impl Data for Event {
-    fn get_links(&self) -> Vec<Link> {
-        self._links.unwrap_or(vec![])
-    }
-
-    fn get_templates(&self) -> Vec<Template> {
-        self._templates.unwrap_or(vec![])
-    }
-}
-
-impl Data for Comment {
-    fn get_links(&self) -> Vec<Link> {
-        self._links.unwrap_or(vec![])
-    }
-
-    fn get_templates(&self) -> Vec<Template> {
-        self._templates.unwrap_or(vec![])
-    }
-}
-*/

@@ -1,35 +1,51 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use rocket::request::Request;
+use rocket::response::{self, Response, Responder};
+use rocket::http::ContentType;
+use rocket_contrib::json::{Json, JsonValue};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Status {
     OK,
     Error,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Error {
     pub code: i32,
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Envelope {
     pub status: Status,
-    pub data: Option<Value>,
+    pub data: Option<JsonValue>,
     pub error: Option<Error>,
+    #[serde(rename = "pageNumber")]
     pub page_number: Option<i32>,
+    #[serde(rename = "nextPage")]
     pub next_page: Option<String>,
+    #[serde(rename = "totalPages")]
     pub total_pages: Option<i32>,
+    pub _links: Option<Vec<Link>>,
+    pub _templates: Option<Vec<Template>>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+impl<'a> Responder<'a> for Envelope {
+    fn respond_to(self, req: &Request) -> response::Result<'a> {
+        Response::build_from(Json(self).respond_to(req).unwrap())
+            .header(ContentType::JSON)
+            .ok()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Link {
     pub key: String,
     pub href: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MethodType {
     GET,
     POST,
@@ -37,7 +53,7 @@ pub enum MethodType {
     DELETE,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
     pub key: String,
     pub method: MethodType,
@@ -49,7 +65,7 @@ pub struct Template {
     pub title: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Property {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,13 +78,6 @@ pub struct Property {
     pub value: Option<String>,
 }
 
-/*
-pub trait Data: Serialize + 'Deserialize {
-    fn get_links(&self) -> Vec<Link>;
-    fn get_templates(&self) -> Vec<Template>;
-}
-*/
-
 pub fn error(code: i32, description: String) -> Envelope {
     let error = Error { code, description };
     Envelope {
@@ -77,18 +86,22 @@ pub fn error(code: i32, description: String) -> Envelope {
         error: Some(error),
         page_number: None,
         next_page: None,
-        total_pages: None
+        total_pages: None,
+        _links: None,
+        _templates: None,
     }
 }
 
-pub fn success(data: Value) -> Envelope {
+pub fn success(data: JsonValue, links: Option<Vec<Link>>, templates: Option<Vec<Template>>) -> Envelope {
     Envelope {
         status: Status::OK,
         data: Some(data),
         error: None,
         page_number: None,
         next_page: None,
-        total_pages: None
+        total_pages: None,
+        _links: links,
+        _templates: templates,
     }
 }
 

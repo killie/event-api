@@ -2,47 +2,47 @@
 
 #[macro_use]
 extern crate rocket;
+#[macro_use]
+extern crate rocket_contrib;
 
-use rocket_contrib::json::Json;
+use rocket_contrib::json::{Json, JsonValue};
 use rocket::http::RawStr;
 use lib::db;
 use lib::model::{Event, Comment};
-
-type EventsJson = Json<Option<Vec<Event>>>;
-type CommentsJson = Json<Option<Vec<Comment>>>;
+use lib::envelope::{self, Envelope};
 
 fn main() {
     rocket().launch();
 }
 
 #[get("/?<from>&<to>&<appName>")]
-fn get_events(from: Option<i64>, to: Option<i64>, appName: Option<String>) -> EventsJson {
+fn get_events(from: Option<i64>, to: Option<i64>, appName: Option<String>) -> Envelope {
     if from.is_none() && to.is_none() && appName.is_none() {
-        return Json(db::get_events());
+        return envelope::success(json!(db::get_events()), None, None);
     }
-    Json(db::query_events(from, to, appName))
+    envelope::success(json!(db::query_events(from, to, appName)), None, None)
 }
 
 #[post("/", data="<event>")]
-fn create_event(event: Json<Event>) -> Json<Option<Event>> {
-    Json(db::create_event(event.0))
+fn create_event(event: Json<Event>) -> Envelope {
+    envelope::success(json!(db::create_event(event.0)), None, None)
 }
 
 #[get("/<id>")]
-fn get_event(id: &RawStr) -> EventsJson {
+fn get_event(id: &RawStr) -> Envelope {
     let id_string = id.url_decode().expect("Failed to decode event ID.");
-    Json(db::get_event(&id_string))
+    envelope::success(json!(db::get_event(&id_string)), None, None)
 }    
 
 #[get("/<id>/comments")]  
-fn get_comments(id: &RawStr) -> CommentsJson {
+fn get_comments(id: &RawStr) -> Envelope {
     let id_string = id.url_decode().expect("Failed to decode event ID.");
-    Json(db::get_comments(&id_string))
+    envelope::success(json!(db::get_comments(&id_string)), None, None)
 }
 
 #[post("/<_id>/comments", data="<comment>")]
-fn create_comment(_id: &RawStr, comment: Json<Comment>) -> Json<Option<Comment>> {
-    Json(db::create_comment(comment.0))
+fn create_comment(_id: &RawStr, comment: Json<Comment>) -> Envelope {
+    envelope::success(json!(db::create_comment(comment.0)), None, None)
 }
 
 fn rocket() -> rocket::Rocket {
