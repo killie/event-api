@@ -41,18 +41,24 @@ pub enum MethodType {
 pub struct Template {
     pub key: String,
     pub method: MethodType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<Vec<Property>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Property {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
-    pub read_only: Option<bool>,
-    pub required: Option<bool>,
+    pub read_only: bool,
+    pub required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub templated: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 

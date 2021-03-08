@@ -1,7 +1,7 @@
 use std::fs;
 use uuid::Uuid;
-use crate::model::Event;
-use crate::model::Comment;
+use crate::model::{Event, Comment};
+use crate::envelope::{Link, Template, MethodType, Property};
 
 static EVENTS_JSON: &str = "data/events.json";
 static COMMENTS_JSON: &str = "data/comments.json";
@@ -11,10 +11,17 @@ type EventsOption = Option<Vec<Event>>;
 type CommentsResult = Result<Vec<Comment>, serde_json::Error>;
 type CommentsOption = Option<Vec<Comment>>;
 
-fn read_events() -> EventsResult {
+fn read_events(include_affordance: bool) -> EventsResult {
     let data = fs::read_to_string(EVENTS_JSON).expect("Error reading from events file.");
     let events: EventsResult = serde_json::from_str(&data);
-    events
+    if include_affordance {
+        match events {
+            Ok(events) => Ok(events.into_iter().map(add_affordances).collect()),
+            Err(_) => events,
+        }
+    } else {
+        events
+    }
 }
 
 fn write_events(events: Vec<Event>) {
@@ -27,10 +34,91 @@ fn create_uuid() -> String {
 }
 
 pub fn get_events() -> EventsOption {
-    match read_events() {
+    match read_events(true) {
         Ok(events) => Some(events),
         Err(_) => None
     }
+}
+
+fn add_affordances(mut event: Event) -> Event {
+    match event.id {
+        Some(ref id) => {
+            let mut links: Vec<Link> = Vec::new();
+            let mut href = "/events/".to_string();
+            href.push_str(&id);
+            links.push(Link { key: "self".to_string(), href: href.clone() });
+            href.push_str("/comments");
+            links.push(Link { key: "comments".to_string(), href: href });
+            event._links = Some(links);
+
+            let mut templates: Vec<Template> = Vec::new();
+            templates.push(Template {
+                key: "delete".to_string(),
+                title: None,
+                method: MethodType::DELETE,
+                properties: None,
+                target: Some("self".to_string()),
+            });
+            templates.push(Template {
+                key: "update".to_string(),
+                title: None,
+                method: MethodType::PATCH,
+                properties: Some(get_update_properties()),
+                target: Some("self".to_string()),
+            });
+            templates.push(Template {
+                key: "comment".to_string(),
+                title: None,
+                method: MethodType::POST,
+                properties: Some(get_comment_properties(&id)),
+                target: Some("comments".to_string()),
+            });
+            event._templates = Some(templates);
+
+            event
+        },
+        None => event
+    }
+}
+
+fn get_update_properties() -> Vec<Property> {
+    let mut properties: Vec<Property> = Vec::new();
+    properties.push(Property {
+        name: "from".to_string(), prompt: None, read_only: false, required: true, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "to".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "text".to_string(), prompt: None, read_only: false, required: true, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "appName".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "sourceId".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "sourceName".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
+    });
+    properties
+}
+
+fn get_comment_properties(id: &str) -> Vec<Property> {
+    let mut properties: Vec<Property> = Vec::new();
+    properties.push(Property {
+        name: "eventId".to_string(), prompt: None, read_only: true, required: true, templated: None, value: Some(id.to_string())
+    });
+    properties.push(Property {
+        name: "userId".to_string(), prompt: None, read_only: false, required: true, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "comment".to_string(), prompt: None, read_only: false, required: true, templated: None, value: None
+    });
+    properties.push(Property {
+        name: "timestamp".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
+    });
+    properties
 }
 
 /*
@@ -43,7 +131,7 @@ fn filter_events(events: Vec<Event>, f: impl Fn(Event) -> bool) -> EventsOption 
 */
 
 pub fn query_events(from: Option<i64>, to: Option<i64>, app_name: Option<String>) -> EventsOption {
-    match read_events() {
+    match read_events(true) {
         Ok(events) => {
             Some(events
                  .into_iter()
@@ -76,7 +164,7 @@ pub fn query_events(from: Option<i64>, to: Option<i64>, app_name: Option<String>
 }
         
 pub fn get_event(id: &String) -> EventsOption {
-    match read_events() {
+    match read_events(true) {
         Ok(events) => {
             //let query = |e: Event| e.id == Some(id.to_string());
             //filter_events(events, &query)
@@ -92,7 +180,7 @@ pub fn get_event(id: &String) -> EventsOption {
 }
 
 pub fn create_event(event: Event) -> Option<Event> {
-    match read_events() {
+    match read_events(false) {
         Ok(mut events) => {
             let mut new_event = event.clone();
             new_event.id = Some(create_uuid());
