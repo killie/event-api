@@ -39,6 +39,12 @@ impl<'a> Responder<'a> for Envelope {
     }
 }
 
+pub struct Payload {
+    pub data: JsonValue,
+    pub links: Option<Vec<Link>>,
+    pub templates: Option<Vec<Template>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Link {
     pub key: String,
@@ -92,16 +98,26 @@ pub fn error(code: i32, description: String) -> Envelope {
     }
 }
 
-pub fn success(data: JsonValue, links: Option<Vec<Link>>, templates: Option<Vec<Template>>) -> Envelope {
+pub fn success(payload: Payload) -> Envelope {
     Envelope {
         status: Status::OK,
-        data: Some(data),
+        data: Some(payload.data),
         error: None,
         page_number: None,
         next_page: None,
         total_pages: None,
-        _links: links,
-        _templates: templates,
+        _links: payload.links,
+        _templates: payload.templates,
     }
 }
 
+pub fn create_property(name: &str, read_only: bool, required: bool) -> Property {
+    Property {
+        name: name.to_string(),
+        prompt: None,
+        read_only: read_only,
+        required: required,
+        templated: None,
+        value: None,
+    }
+}

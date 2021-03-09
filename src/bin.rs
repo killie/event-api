@@ -8,15 +8,15 @@ extern crate rocket_contrib;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket::http::RawStr;
 
-use lib::db::{self, EventDb, file_based::FileBasedEventDb};
-use lib::model::{Event, Comment};
+use lib::db::{EventDb, file_based::FileBasedEventDb};
+use lib::model::{self, Event, EventFilter, Comment, CommentFilter};
 use lib::envelope::{self, Envelope};
 
 fn main() {
     rocket().launch();
 }
 
-fn get_event_db() -> impl db::EventDb {
+fn get_event_db() -> impl EventDb {
     FileBasedEventDb {}
 }
 
@@ -26,12 +26,12 @@ fn get_events(from: Option<i64>, to: Option<i64>, appName: Option<String>) -> En
     
     if from.is_none() && to.is_none() && appName.is_none() {
         return match edb.get_events(None) {
-            Ok(events) => envelope::success(json!(events), None, None),
+            Ok(events) => envelope::success(model::get_events_payload(events)),
             Err(err) => envelope::error(1, "what".to_string()),
         }
     }
     
-    let filter = db::EventFilter {
+    let filter = EventFilter {
         from: from,
         to: to,
         app_name: appName,
@@ -40,7 +40,7 @@ fn get_events(from: Option<i64>, to: Option<i64>, appName: Option<String>) -> En
     };
     
     match edb.get_events(Some(filter)) {
-        Ok(events) => envelope::success(json!(events), None, None),
+        Ok(events) => envelope::success(model::get_events_payload(events)),
         Err(err) => envelope::error(1, "noo".to_string()),
     }
 }
@@ -48,7 +48,7 @@ fn get_events(from: Option<i64>, to: Option<i64>, appName: Option<String>) -> En
 #[post("/", data="<event>")]
 fn create_event(event: Json<Event>) -> Envelope {
     match get_event_db().create_event(event.0) {
-        Ok(event) => envelope::success(json!(event), None, None),
+        Ok(event) => envelope::success(model::get_event_payload(event)),
         Err(err) => envelope::error(2, "no can do".to_string()),
     }
 }
@@ -57,7 +57,7 @@ fn create_event(event: Json<Event>) -> Envelope {
 fn get_event(id: &RawStr) -> Envelope {
     let id_string = id.url_decode().expect("Failed to decode event ID.");
     match get_event_db().get_event(id_string) {
-        Ok(event) => envelope::success(json!(event), None, None),
+        Ok(event) => envelope::success(model::get_event_payload(event)),
         Err(err) => envelope::error(3, "uh-oh".to_string()),
     }
 }    
@@ -65,9 +65,10 @@ fn get_event(id: &RawStr) -> Envelope {
 #[get("/<id>/comments")]  
 fn get_comments(id: &RawStr) -> Envelope {
     let id_string = id.url_decode().expect("Failed to decode event ID.");
-    let filter = db::CommentFilter { event_id: Some(id_string), user_id: None };
+    let id_copy = id_string.clone();
+    let filter = CommentFilter { event_id: Some(id_string), user_id: None };
     match get_event_db().get_comments(Some(filter)) {
-        Ok(comments) => envelope::success(json!(comments), None, None),
+        Ok(comments) => envelope::success(model::get_comments_payload(id_copy, comments)),
         Err(err) => envelope::error(4, "huh".to_string()),
     }
 }
@@ -75,7 +76,7 @@ fn get_comments(id: &RawStr) -> Envelope {
 #[post("/<_id>/comments", data="<comment>")]
 fn create_comment(_id: &RawStr, comment: Json<Comment>) -> Envelope {
     match get_event_db().create_comment(comment.0) {
-        Ok(comment) => envelope::success(json!(comment), None, None),
+        Ok(comment) => envelope::success(model::get_comment_payload(comment)),
         Err(err) => envelope::error(5, "oh no".to_string()),
     }
 }

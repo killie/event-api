@@ -1,9 +1,8 @@
 use std::fs;
 use std::error::Error;
 
-use crate::model::{Event, Comment};
-use crate::envelope::{Link, Template, MethodType, Property};
-use super::{EventDb, EventFilter, CommentFilter};
+use crate::model::{Event, EventFilter, Comment, CommentFilter};
+use super::EventDb;
 
 static EVENTS_JSON: &str = "data/events.json";
 static COMMENTS_JSON: &str = "data/comments.json";
@@ -17,7 +16,7 @@ impl EventDb for FileBasedEventDb {
     }
 
     fn get_event(&self, event_id: String) -> Result<Event, Box<dyn Error>> {
-        let events = read_events(true)?;
+        let events = read_events()?;
         let matches: Vec<Event> = events
             .into_iter()
             .filter(|e| e.id == Some(event_id.to_string()))
@@ -27,7 +26,7 @@ impl EventDb for FileBasedEventDb {
     }
 
     fn create_event(&self, event: Event) -> Result<Event, Box<dyn Error>> {
-        let mut events = read_events(false)?;
+        let mut events = read_events()?;
         let mut new_event = event.clone();
         new_event.id = Some(super::create_uuid());
         events.push(new_event.clone());
@@ -37,7 +36,7 @@ impl EventDb for FileBasedEventDb {
 
     fn update_event(&self, event: Event) -> Result<Event, Box<dyn Error>> {
         // TODO: Do not allow updating without event.id, throw error
-        let events = read_events(false)?;
+        let events = read_events()?;
         let updates = events
             .into_iter()
             .map(|e| {
@@ -111,14 +110,10 @@ impl EventDb for FileBasedEventDb {
     }
 }
 
-fn read_events(include_affordance: bool) -> Result<Vec<Event>, Box<dyn Error>> {
+fn read_events() -> Result<Vec<Event>, Box<dyn Error>> {
     let data = fs::read_to_string(EVENTS_JSON).expect("Error reading from events file.");
     let events: Vec<Event> = serde_json::from_str(&data)?;
-    if include_affordance {
-        Ok(events.into_iter().map(super::add_affordances).collect())
-    } else {
-        Ok(events)
-    }
+    Ok(events)
 }
 
 fn write_events(events: Vec<Event>) {
@@ -127,7 +122,7 @@ fn write_events(events: Vec<Event>) {
 }
 
 fn filter_events(filter: Option<EventFilter>) -> Result<Vec<Event>, Box<dyn Error>> {
-    let events = read_events(true)?;
+    let events = read_events()?;
     if filter.is_none() {
         return Ok(events);
     }
