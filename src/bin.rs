@@ -10,7 +10,7 @@ use rocket::http::RawStr;
 
 use lib::db::{EventDb, file_based::FileBasedEventDb};
 use lib::model::{self, Event, EventFilter, Comment, CommentFilter};
-use lib::envelope::{self, Envelope};
+use lib::envelope::{self, Envelope, Payload};
 
 fn main() {
     rocket().launch();
@@ -45,6 +45,15 @@ fn get_events(from: Option<i64>, to: Option<i64>, appName: Option<String>) -> En
     }
 }
 
+#[get("/<id>")]
+fn get_event(id: &RawStr) -> Envelope {
+    let id_string = id.url_decode().expect("Failed to decode event ID.");
+    match get_event_db().get_event(id_string) {
+        Ok(event) => envelope::success(model::get_event_payload(event)),
+        Err(err) => envelope::error(3, "uh-oh".to_string()),
+    }
+}
+
 #[post("/", data="<event>")]
 fn create_event(event: Json<Event>) -> Envelope {
     match get_event_db().create_event(event.0) {
@@ -53,14 +62,28 @@ fn create_event(event: Json<Event>) -> Envelope {
     }
 }
 
-#[get("/<id>")]
-fn get_event(id: &RawStr) -> Envelope {
-    let id_string = id.url_decode().expect("Failed to decode event ID.");
-    match get_event_db().get_event(id_string) {
+#[patch("/<_id>", data="<event>")]
+fn update_event(_id: &RawStr, event: Json<Event>) -> Envelope {
+    match get_event_db().update_event(event.0) {
         Ok(event) => envelope::success(model::get_event_payload(event)),
-        Err(err) => envelope::error(3, "uh-oh".to_string()),
+        Err(err) => envelope::error(2, "no can doo".to_string()),
     }
-}    
+}
+
+#[delete("/<id>")]
+fn delete_event(id: &RawStr) -> Envelope {
+    let id_string = id.url_decode().expect("Failed to decode event ID.");
+    match get_event_db().delete_event(id_string) {
+        Ok(result) => {
+            envelope::success(Payload {
+                data: json!(result),
+                links: None,
+                templates: None,
+            })
+        },
+        Err(err) => envelope::error(4, "Rats".to_string()),
+    }
+}
 
 #[get("/<id>/comments")]  
 fn get_comments(id: &RawStr) -> Envelope {
@@ -81,9 +104,42 @@ fn create_comment(_id: &RawStr, comment: Json<Comment>) -> Envelope {
     }
 }
 
+#[patch("/<_e_id>/comments/<_c_id>", data="<comment>")]
+fn update_comment(_e_id: &RawStr, _c_id: &RawStr, comment: Json<Comment>) -> Envelope {
+    match get_event_db().update_comment(comment.0) {
+        Ok(comment) => envelope::success(model::get_comment_payload(comment)),
+        Err(err) => envelope::error(5, "oh noo".to_string()),
+    }
+}
+
+#[delete("/<_e_id>/comments/<id>")]
+fn delete_comment(_e_id: &RawStr, id: &RawStr) -> Envelope {
+    let id_string = id.url_decode().expect("Failed to decode comment ID.");
+    match get_event_db().delete_comment(id_string) {
+        Ok(result) => {
+            envelope::success(Payload {
+                data: json!(result),
+                links: None,
+                templates: None,
+            })
+        },
+        Err(err) => envelope::error(4, "Could not delete comment".to_string()),
+    }
+}
+
 fn rocket() -> rocket::Rocket {
     rocket::ignite().mount(
         "/events",
-        routes![get_events, get_event, create_event, get_comments, create_comment],
+        routes![
+            get_events,
+            get_event,
+            create_event,
+            update_event,
+            delete_event,
+            get_comments,
+            create_comment,
+            update_comment,
+            delete_comment,
+        ],
     )
 }

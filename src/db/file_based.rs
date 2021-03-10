@@ -52,8 +52,12 @@ impl EventDb for FileBasedEventDb {
     }
 
     fn delete_event(&self, event_id: String) -> Result<bool, Box<dyn Error>> {
-        // Filter to this event and remove it
-        Ok(false)
+        let e_id = Some(event_id);
+        let mut events = read_events()?;
+        let index = events.iter().position(|e| e.id == e_id).unwrap();
+        events.remove(index);
+        write_events(events);
+        Ok(true)
     }
     
     fn get_comments(&self, filter: Option<CommentFilter>) -> Result<Vec<Comment>, Box<dyn Error>> {
@@ -100,13 +104,28 @@ impl EventDb for FileBasedEventDb {
     }
 
     fn update_comment(&self, comment: Comment) -> Result<Comment, Box<dyn Error>> {
-        // Filter to this comment and replace it
+        let comments = read_comments()?;
+        let updates = comments
+            .into_iter()
+            .map(|c| {
+                if c.id == comment.id {
+                    return comment.clone();
+                } else {
+                    return c;
+                }
+            })
+            .collect();
+        write_comments(updates);
         Ok(comment)
     }
 
-    fn delete_comment(&self, event_id: String) -> Result<bool, Box<dyn Error>> {
-        // Filter to this comment and remove it
-        Ok(false)
+    fn delete_comment(&self, comment_id: String) -> Result<bool, Box<dyn Error>> {
+        let c_id = Some(comment_id);
+        let mut comments = read_comments()?;
+        let index = comments.iter().position(|c| c.id == c_id).unwrap();
+        comments.remove(index);
+        write_comments(comments);
+        Ok(true)
     }
 }
 

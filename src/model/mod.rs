@@ -86,7 +86,7 @@ fn extend_event(mut event: Event) -> Event {
                 key: "update".to_string(),
                 title: None,
                 method: MethodType::PATCH,
-                properties: Some(get_update_properties()),
+                properties: Some(get_event_properties()),
                 target: Some("self".to_string()),
             });
             templates.push(Template {
@@ -116,13 +116,13 @@ fn event_templates() -> Vec<Template> {
         key: "default".to_string(),
         title: Some("Create event".to_string()),
         method: MethodType::POST,
-        properties: Some(get_create_properties()),
+        properties: Some(get_event_properties()),
         target: Some("self".to_string())
     });
     templates
 }
 
-fn get_create_properties() -> Vec<Property> {
+fn get_event_properties() -> Vec<Property> {
     let mut properties: Vec<Property> = Vec::new();
     properties.push(create_property("from", false, true));
     properties.push(create_property("to", false, false));
@@ -133,38 +133,11 @@ fn get_create_properties() -> Vec<Property> {
     properties
 }
     
-fn get_update_properties() -> Vec<Property> {
-    let mut properties: Vec<Property> = Vec::new();
-    properties.push(create_property("from", false, true));
-    properties.push(create_property("to", false, false));
-    /*
-    properties.push(Property {
-        name: "from".to_string(), prompt: None, read_only: false, required: true, templated: None, value: None
-    });
-    properties.push(Property {
-        name: "to".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
-    });
-     */
-    properties.push(Property {
-        name: "text".to_string(), prompt: None, read_only: false, required: true, templated: None, value: None
-    });
-    properties.push(Property {
-        name: "appName".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
-    });
-    properties.push(Property {
-        name: "sourceId".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
-    });
-    properties.push(Property {
-        name: "sourceName".to_string(), prompt: None, read_only: false, required: false, templated: None, value: None
-    });
-    properties
-}
-
 pub fn get_comments_payload(event_id: String, comments: Vec<Comment>) -> Payload {
     Payload {
         data: json!(comments.into_iter().map(extend_comment).collect::<Vec<Comment>>()),
         links: Some(comment_links(&event_id)),
-        templates: Some(comment_templates()),
+        templates: Some(comment_templates(&event_id)),
     }
 }
 
@@ -234,13 +207,13 @@ fn comment_links(event_id: &str) -> Vec<Link> {
     links
 }
 
-fn comment_templates() -> Vec<Template> {
+fn comment_templates(event_id: &str) -> Vec<Template> {
     let mut templates: Vec<Template> = Vec::new();
     templates.push(Template {
         key: "default".to_string(),
         title: Some("Create comment".to_string()),
         method: MethodType::POST,
-        properties: Some(get_create_properties()),
+        properties: Some(get_comment_properties(event_id)),
         target: Some("self".to_string())
     });
     templates
