@@ -6,11 +6,31 @@ extern crate rocket;
 extern crate rocket_contrib;
 
 use rocket_contrib::json::{Json, JsonValue};
-use rocket::http::RawStr;
+use rocket::{Request, Response};
+use rocket::http::{Header, RawStr};
+use rocket::fairing::{Fairing, Info, Kind};
 
 use lib::db::{EventDb, file_based::FileBasedEventDb};
 use lib::model::{self, Event, EventFilter, Comment, CommentFilter};
 use lib::envelope::{self, Envelope, Payload};
+
+pub struct CORS();
+
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Add CORS headers to requests",
+            kind: Kind::Response
+        }
+    }
+
+    fn on_response(&self, request: &Request, response: &mut Response) {
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, PATCH, OPTIONS"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+    }
+}
 
 fn main() {
     rocket().launch();
@@ -128,7 +148,7 @@ fn delete_comment(_e_id: &RawStr, id: &RawStr) -> Envelope {
 }
 
 fn rocket() -> rocket::Rocket {
-    rocket::ignite().mount(
+    rocket::ignite().attach(CORS()).mount(
         "/events",
         routes![
             get_events,
