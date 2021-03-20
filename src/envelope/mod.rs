@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use rocket::request::Request;
 use rocket::response::{self, Response, Responder};
@@ -27,8 +28,8 @@ pub struct Envelope {
     pub next_page: Option<String>,
     #[serde(rename = "totalPages")]
     pub total_pages: Option<i32>,
-    pub _links: Option<Vec<Link>>,
-    pub _templates: Option<Vec<Template>>,
+    pub _links: Option<HashMap<String, Link>>,
+    pub _templates: Option<HashMap<String, Template>>,
 }
 
 impl<'a> Responder<'a> for Envelope {
@@ -99,6 +100,20 @@ pub fn error(code: i32, description: String) -> Envelope {
 }
 
 pub fn success(payload: Payload) -> Envelope {
+    let mut links = HashMap::new();
+    if payload.links.is_some() {
+        for link in payload.links.unwrap().iter() {
+            links.insert(link.key.clone(), link.clone());
+        }
+    }
+
+    let mut templates = HashMap::new();
+    if payload.templates.is_some() {
+        for template in payload.templates.unwrap().iter() {
+            templates.insert(template.key.clone(), template.clone());
+        }
+    }
+
     Envelope {
         status: Status::OK,
         data: Some(payload.data),
@@ -106,8 +121,8 @@ pub fn success(payload: Payload) -> Envelope {
         page_number: None,
         next_page: None,
         total_pages: None,
-        _links: payload.links,
-        _templates: payload.templates,
+        _links: Some(links.clone()),
+        _templates: Some(templates.clone()),
     }
 }
 
